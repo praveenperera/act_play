@@ -19,7 +19,7 @@ impl SimpleGreeter {
         self.number_of_greets += 1;
 
         println!(
-            "Short Greeter: Number {}, Since Start: {}",
+            "Short Greeter: Number {}, Since Start: {}ms",
             self.number_of_greets,
             self.start.elapsed().as_millis()
         );
@@ -31,7 +31,7 @@ impl SimpleGreeter {
         self.number_of_greets += 1;
 
         println!(
-            "Long Greeter: Number {}, Since Start: {}",
+            "Long Greeter: Number {}, Since Start: {}ms",
             self.number_of_greets,
             self.start.elapsed().as_millis()
         );
