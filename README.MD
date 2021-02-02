@@ -1,6 +1,11 @@
-# ActPlay
-
 Playing with the awesome [act-zero](https://github.com/Diggsey/act-zero) crate.
+
+- [Testing LongGreeter:](#testing-longgreeter)
+  - [Input:](#input)
+  - [Output](#output)
+- [Testing ShortGreeter:](#testing-shortgreeter)
+  - [Input:](#input-1)
+  - [Output](#output-1)
 
 ## Testing LongGreeter:
 
