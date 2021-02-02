@@ -6,14 +6,14 @@ use act_zero::*;
 use tokio::net::TcpListener;
 use tokio::time::Instant;
 
-struct SimpleGreeter {
+struct LongGreeter {
     start: Instant,
     number_of_greets: i32,
 }
 
-impl Actor for SimpleGreeter {}
+impl Actor for LongGreeter {}
 
-impl SimpleGreeter {
+impl LongGreeter {
     async fn long_greet(&mut self) -> ActorResult<()> {
         self.number_of_greets += 1;
 
@@ -40,7 +40,7 @@ impl SimpleGreeter {
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let long_listener = TcpListener::bind("127.0.0.1:8081").await.unwrap();
-    let long_greeter = spawn_actor(SimpleGreeter::new());
+    let long_greeter = spawn_actor(LongGreeter::new());
 
     loop {
         let _ = long_listener.accept().await;
