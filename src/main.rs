@@ -36,6 +36,7 @@ impl SimpleGreeter {
             self.start.elapsed().as_millis()
         );
 
+        // sleep here represents a longer await, for example a HTTP call to a slow service
         tokio::time::sleep(Duration::from_millis(1000)).await;
 
         Produces::ok(())
