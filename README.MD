@@ -1,16 +1,16 @@
 Playing with the awesome [act-zero](https://github.com/Diggsey/act-zero) crate.
 
-- [ShortGreeter:](#shortgreeter)
+- [ShortGreeter (no long await points)](#shortgreeter-no-long-await-points)
   - [Input](#input)
   - [Output](#output)
-- [LongGreeter:](#longgreeter)
+- [LongGreeter (long await points)](#longgreeter-long-await-points)
   - [Input](#input-1)
   - [Output](#output-1)
-- [GreeterPool:](#greeterpool)
+- [GreeterPool (long await with Actor pool)](#greeterpool-long-await-with-actor-pool)
   - [Input](#input-2)
   - [Output](#output-2)
 
-## ShortGreeter:
+## ShortGreeter (no long await points)
 
 `cd short_greeter && cargo run`
 
@@ -40,7 +40,7 @@ Short Greeter: Number 10, Since Start: 13632ms
 
 ```
 
-## LongGreeter:
+## LongGreeter (long await points)
 
 `cd long_greeter && cargo run`
 
@@ -76,7 +76,7 @@ Long Greeter: Number 9, Since Start: 9805ms
 Long Greeter: Number 10, Since Start: 10807ms
 ```
 
-## GreeterPool:
+## GreeterPool (long await with Actor pool)
 
 `cd greeter_pool && cargo run`
 
