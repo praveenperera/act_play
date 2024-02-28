@@ -2,8 +2,8 @@ use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use tokio::time::Instant;
 use tracing::{info, Span};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
-use tracing_subscriber::util::SubscriberInitExt as _;
+use tracing_error::ErrorLayer;
+use tracing_subscriber::{prelude::*, EnvFilter};
 
 #[derive(Debug, Clone)]
 struct ShortGreeter {
@@ -57,11 +57,9 @@ impl InnerGreeterActor {
         Produces::ok(())
     }
 
-    // #[tracing::instrument(parent = &ctx.parent, skip_all)]
+    #[tracing::instrument(parent = &ctx.parent, skip_all)]
     #[tracing::instrument(skip_all)]
     async fn inner_actor_last(&mut self, ctx: Context, msg: String) {
-        // test `set_parent also works`
-        Span::current().set_parent(ctx.parent.context());
         tracing::info!("[ACTOR LAST] Grandfather {msg}");
     }
 
@@ -119,34 +117,23 @@ impl ShortGreeter {
 }
 
 pub fn install_tracing() {
-    use opentelemetry::trace::TracerProvider as _;
-    use opentelemetry_sdk::trace::TracerProvider;
-    use tracing_error::ErrorLayer;
-    use tracing_subscriber::layer::SubscriberExt;
-    use tracing_subscriber::EnvFilter;
+    let tracer = opentelemetry_jaeger::new_agent_pipeline()
+        .with_service_name("trace-play")
+        .install_simple()
+        .unwrap();
 
-    let exporter = opentelemetry_stdout::SpanExporter::default();
-    let provider = TracerProvider::builder()
-        .with_simple_exporter(exporter)
-        .build();
-
-    let tracer = provider.tracer("readme_example");
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     let fmt_layer = tracing_subscriber::fmt::layer();
 
     let filter_layer = EnvFilter::try_from_default_env()
         .or_else(|_| EnvFilter::try_new("debug"))
-        .unwrap()
-        .add_directive("gst_utils=debug".parse().unwrap())
-        .add_directive("timeline=info".parse().unwrap())
-        .add_directive("state=info".parse().unwrap())
-        .add_directive("opset=warn".parse().unwrap());
+        .unwrap();
 
     tracing_subscriber::registry()
+        .with(fmt_layer)
         .with(telemetry)
         .with(filter_layer)
         .with(ErrorLayer::default())
-        .with(fmt_layer)
         .init();
 }
 
@@ -160,10 +147,7 @@ async fn main() {
     {
         let short_greeter = short_greeter.clone();
         tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                call!(short_greeter.short_greet("FROM_TOKIO_TASK".to_string()));
-            }
+            call!(short_greeter.short_greet("FROM_TOKIO_TASK".to_string()));
         })
     };
 
@@ -175,5 +159,7 @@ async fn main() {
         .inner_normal(Context::default(), "FROM_MAIN".to_string())
         .await;
 
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     // short_greeter.termination().await
+    opentelemetry::global::shutdown_tracer_provider();
 }
