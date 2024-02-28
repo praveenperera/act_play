@@ -2,6 +2,8 @@ use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use tokio::time::Instant;
 use tracing::{info, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing_subscriber::util::SubscriberInitExt as _;
 
 #[derive(Debug, Clone)]
 struct ShortGreeter {
@@ -55,8 +57,11 @@ impl InnerGreeterActor {
         Produces::ok(())
     }
 
-    #[tracing::instrument(parent = &ctx.parent, skip_all)]
+    // #[tracing::instrument(parent = &ctx.parent, skip_all)]
+    #[tracing::instrument(skip_all)]
     async fn inner_actor_last(&mut self, ctx: Context, msg: String) {
+        // test `set_parent also works`
+        Span::current().set_parent(ctx.parent.context());
         tracing::info!("[ACTOR LAST] Grandfather {msg}");
     }
 
@@ -85,7 +90,9 @@ impl ShortGreeter {
 
         let ctx = Context::default();
         let inner_adr = self.inner.clone();
-        call!(self.inner.inner_actor(ctx.clone(), inner_adr, "FROM_SHORT_GREETER".to_string()));
+        call!(self
+            .inner
+            .inner_actor(ctx.clone(), inner_adr, "FROM_SHORT_GREETER".to_string()));
 
         let inner = InnerGreeterNormal::new();
         inner
@@ -112,11 +119,21 @@ impl ShortGreeter {
 }
 
 pub fn install_tracing() {
+    use opentelemetry::trace::TracerProvider as _;
+    use opentelemetry_sdk::trace::TracerProvider;
     use tracing_error::ErrorLayer;
-    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::EnvFilter;
 
+    let exporter = opentelemetry_stdout::SpanExporter::default();
+    let provider = TracerProvider::builder()
+        .with_simple_exporter(exporter)
+        .build();
+
+    let tracer = provider.tracer("readme_example");
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     let fmt_layer = tracing_subscriber::fmt::layer();
+
     let filter_layer = EnvFilter::try_from_default_env()
         .or_else(|_| EnvFilter::try_new("debug"))
         .unwrap()
@@ -126,9 +143,10 @@ pub fn install_tracing() {
         .add_directive("opset=warn".parse().unwrap());
 
     tracing_subscriber::registry()
+        .with(telemetry)
         .with(filter_layer)
-        .with(fmt_layer)
         .with(ErrorLayer::default())
+        .with(fmt_layer)
         .init();
 }
 
