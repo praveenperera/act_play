@@ -1,7 +1,7 @@
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::*;
 use tokio::time::Instant;
-use tracing::{debug, info, span::Entered, Level, Span};
+use tracing::{info, Span};
 
 #[derive(Debug, Clone)]
 struct ShortGreeter {
