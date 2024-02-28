@@ -21,12 +21,12 @@ impl Actor for InnerGreeterActor {}
 
 #[derive(Debug, Clone)]
 pub struct Context {
-    parent_span: Span,
+    parent: Span,
 }
 
 impl Context {
     pub fn update(mut self) -> Self {
-        self.parent_span = Span::current();
+        self.parent = Span::current();
         self
     }
 }
@@ -34,28 +34,30 @@ impl Context {
 impl Default for Context {
     fn default() -> Self {
         Self {
-            parent_span: Span::current(),
+            parent: Span::current(),
         }
     }
 }
 
 impl InnerGreeterActor {
-    #[tracing::instrument(parent = &ctx.parent_span, skip_all)]
-    async fn inner_actor(&mut self, ctx: Context, me: Addr<Self>) -> ActorResult<()> {
+    #[tracing::instrument(parent = &ctx.parent, skip_all)]
+    async fn inner_actor(&mut self, ctx: Context, me: Addr<Self>, msg: String) -> ActorResult<()> {
         let ctx = ctx.update();
-        tracing::info!("[ACTOR] Inner Greeter");
+        tracing::info!("[ACTOR] Inner Greeter {msg}");
 
         let inner = InnerGreeterNormal::new();
-        inner.inner_normal(ctx.clone()).await;
+        inner
+            .inner_normal(ctx.clone(), "FROM_INNER_ACTOR".to_string())
+            .await;
 
-        send!(me.inner_actor_last(ctx));
+        send!(me.inner_actor_last(ctx, "FROM INNER ACTOR".to_string()));
 
         Produces::ok(())
     }
 
-    #[tracing::instrument(parent = &ctx.parent_span, skip_all)]
-    async fn inner_actor_last(&mut self, ctx: Context) {
-        tracing::info!("[ACTOR LAST] Grandfather");
+    #[tracing::instrument(parent = &ctx.parent, skip_all)]
+    async fn inner_actor_last(&mut self, ctx: Context, msg: String) {
+        tracing::info!("[ACTOR LAST] Grandfather {msg}");
     }
 
     #[tracing::instrument]
@@ -70,26 +72,28 @@ impl InnerGreeterNormal {
         Self {}
     }
 
-    #[tracing::instrument(parent = &ctx.parent_span, skip_all)]
-    async fn inner_normal(self, ctx: Context) {
-        tracing::info!("[NORMAL] Inner Greeter");
+    #[tracing::instrument(parent = &ctx.parent, skip_all)]
+    async fn inner_normal(self, ctx: Context, msg: String) {
+        tracing::info!("[NORMAL] Inner Greeter {msg}");
     }
 }
 
 impl ShortGreeter {
     #[tracing::instrument(skip_all)]
-    async fn short_greet(&mut self) -> ActorResult<()> {
+    async fn short_greet(&mut self, msg: String) -> ActorResult<()> {
         self.number_of_greets += 1;
 
         let ctx = Context::default();
         let inner_adr = self.inner.clone();
-        call!(self.inner.inner_actor(ctx.clone(), inner_adr));
+        call!(self.inner.inner_actor(ctx.clone(), inner_adr, "FROM_SHORT_GREETER".to_string()));
 
         let inner = InnerGreeterNormal::new();
-        inner.inner_normal(Context::default()).await;
+        inner
+            .inner_normal(Context::default(), "FROM_SHORT_GREETER".to_string())
+            .await;
 
         info!(
-            "Short Greeter: Number {}, Since Start: {}ms",
+            "Short Greeter: Number {}, Since Start: {}ms, msg: {msg}",
             self.number_of_greets,
             self.start.elapsed().as_millis()
         );
@@ -140,13 +144,18 @@ async fn main() {
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                call!(short_greeter.short_greet());
+                call!(short_greeter.short_greet("FROM_TOKIO_TASK".to_string()));
             }
         })
     };
 
     let short_greeter = short_greeter.clone();
-    send!(short_greeter.short_greet());
+    send!(short_greeter.short_greet("FROM_MAIN".to_string()));
 
-    short_greeter.termination().await
+    let inner_normal = InnerGreeterNormal::new();
+    inner_normal
+        .inner_normal(Context::default(), "FROM_MAIN".to_string())
+        .await;
+
+    // short_greeter.termination().await
 }
